@@ -1,0 +1,231 @@
+---
+title: "PPI analysis using RNA-seq data"
+output: html_notebook
+---
+
+```{r}
+require(tidyverse)
+require(STRINGdb)
+require(igraph)
+```
+
+
+# STRING (PPI) - AgNPs
+
+```{r}
+load("RNA_processing.RData")
+
+agnp.1h.deg.res %>% 
+  dplyr::select("padj", "log2FoldChange") %>% 
+  rownames_to_column("symbol") %>% 
+  filter(padj < 0.05) -> agnp.1h.deg
+
+agnp.6h.deg.res %>% 
+  dplyr::select("padj", "log2FoldChange") %>% 
+  rownames_to_column("symbol") %>% 
+  filter(padj < 0.05) -> agnp.6h.deg
+
+agnp.24h.deg.res %>% 
+  dplyr::select("padj", "log2FoldChange") %>% 
+  rownames_to_column("symbol") %>% 
+  filter(padj < 0.05) -> agnp.24h.deg
+```
+
+
+## AgNPs 1h
+
+```{r fig.height = 24, fig.width = 40}
+string_db <- STRINGdb$new(version = "12.0", species = 9606, score_threshold = 900, network_type = "full", link_data = "combined_only", input_directory = "")
+mapped <- string_db$map(agnp.1h.deg, "symbol", removeUnmappedRows = TRUE)
+hits <- mapped$STRING_id[1:187]
+
+net.data <- string_db$get_interactions(hits)
+connect.prot <- unique(c(net.data$from, net.data$to))
+filter.hits <- hits[hits %in% connect.prot]
+#string_db$plot_network(filter.hits)
+
+g <- graph_from_data_frame(net.data, directed = FALSE)
+deg <- degree(g)
+sort(deg, decreasing = TRUE) %>% 
+  as.data.frame %>% 
+  dplyr::rename("degree" = ".") %>% 
+  rownames_to_column("STRING_id") %>% 
+  left_join(mapped, by = "STRING_id") %>% 
+  mutate(degree = degree / 2) %>% 
+  mutate(padj = as.numeric(padj)) -> hub.degrees
+
+#hub.degrees %>% 
+#  filter(symbol == "POMP")
+
+hub.degrees %>% 
+  write.csv("Results/Document/E-MTAB-5734 [4] STRING_HubGenes_AgNO3_1h.csv")
+```
+
+```{r}
+clustersList <- string_db$get_clusters(mapped$STRING_id[1:187])
+
+mapped$color <- ifelse(mapped$log2FoldChange > 0, "#FF0000", "#0000FF")
+payload.id <- string_db$post_payload(mapped$STRING_id, colors = mapped$color)
+#string_db$plot_network(hits, payload_id = payload.id, network_flavor = "confidence")
+
+string_db$get_png(filter.hits, required_score = 900, network_flavor = "confidence", payload_id = payload.id, file = "Results/Figure/STRING/AgNO3_1h_900_187.png")
+string_db$get_png(clustersList[[6]], required_score = 900, network_flavor = "confidence", payload_id = payload.id, file = "Results/Figure/STRING/AgNO3_1h_900_187_c6.png")
+```
+
+
+## AgNPs 6h
+
+```{r fig.height = 24, fig.width = 40}
+string_db <- STRINGdb$new(version = "12.0", species = 9606, score_threshold = 999, network_type = "full", link_data = "combined_only", input_directory = "")
+mapped <- string_db$map(agnp.6h.deg, "symbol", removeUnmappedRows = TRUE)
+hits <- mapped$STRING_id[1:1852]
+
+net.data <- string_db$get_interactions(hits)
+connect.prot <- unique(c(net.data$from, net.data$to))
+filter.hits <- hits[hits %in% connect.prot]
+#string_db$plot_network(filter.hits)
+
+g <- graph_from_data_frame(net.data, directed = FALSE)
+deg <- degree(g)
+sort(deg, decreasing = TRUE) %>% 
+  as.data.frame %>% 
+  dplyr::rename("degree" = ".") %>% 
+  rownames_to_column("STRING_id") %>% 
+  dplyr::left_join(mapped, by = "STRING_id") %>% 
+  dplyr::mutate(degree = degree / 2) %>% 
+  dplyr::mutate(padj = as.numeric(padj)) -> hub.degrees
+
+#hub.degrees %>% 
+  #write.csv("Results/Document/E-MTAB-5734 [4] STRING_HubGenes_AgNPs_6h_999.csv")
+```
+
+```{r}
+net.data %>% 
+  filter(from == "9606.ENSP00000269305") %>% 
+  dplyr::rename("STRING_id" = "to") %>% 
+  left_join(mapped, by = "STRING_id") %>% 
+  mutate(updn = ifelse(log2FoldChange > 0, "up_reg", "down_reg")) -> test
+
+table(test$updn)
+```
+
+
+### Download PPI network image
+
+```{r}
+clustersList <- string_db$get_clusters(mapped$STRING_id[1:1852])
+
+mapped$color <- ifelse(mapped$log2FoldChange > 0, "#FF0000", "#0000FF")
+payload.id <- string_db$post_payload(mapped$STRING_id, colors = mapped$color)
+#string_db$plot_network(hits, payload_id = payload.id, network_flavor = "confidence")
+
+string_db$get_png(filter.hits, required_score = 999, network_flavor = "confidence", payload_id = payload.id, file = "Results/Figure/STRING/AgNPs/AgNPs_6h_999_1852.png")
+string_db$get_png(clustersList[[6]], required_score = 999, network_flavor = "confidence", payload_id = payload.id, file = "Results/Figure/STRING/AgNPs/AgNPs_6h_999_1852_c6.png")
+```
+
+### Hub genes for each cluster
+
+```{r}
+cluster.hub.genes <- list()
+
+for (i in 1:length(clustersList)) {
+  
+  cluster.genes <- clustersList[[i]]
+  
+  cluster.net.data <- net.data %>%
+    filter(from %in% cluster.genes & to %in% cluster.genes)
+  
+  g.cluster <- graph_from_data_frame(cluster.net.data, directed = FALSE)
+  
+  cluster.degrees <- degree(g.cluster)
+  
+  sort(cluster.degrees, decreasing = TRUE) %>%
+    as.data.frame() %>%
+    dplyr::rename("degree" = ".") %>%
+    rownames_to_column("STRING_id") %>%
+    left_join(mapped, by = "STRING_id") %>%
+    mutate(degree = degree / 2) %>% 
+    mutate(padj = as.numeric(padj)) -> hub.gene
+  
+  cluster.hub.genes[[paste("Cluster", i)]] <- hub.gene
+}
+
+cluster.hub.genes[1:6] -> cluster.hub.genes.AgNPs.6h
+```
+
+
+## AgNPs 24h
+
+```{r fig.height = 24, fig.width = 40}
+string_db <- STRINGdb$new(version = "12.0", species = 9606, score_threshold = 999, network_type = "full", link_data = "combined_only", input_directory = "")
+mapped <- string_db$map(agnp.24h.deg, "symbol", removeUnmappedRows = TRUE)
+hits <- mapped$STRING_id[1:916]
+
+net.data <- string_db$get_interactions(hits)
+connect.prot <- unique(c(net.data$from, net.data$to))
+filter.hits <- hits[hits %in% connect.prot]
+#string_db$plot_network(filter.hits)
+
+g <- graph_from_data_frame(net.data, directed = FALSE)
+deg <- degree(g)
+sort(deg, decreasing = TRUE) %>% 
+  as.data.frame %>% 
+  dplyr::rename("degree" = ".") %>% 
+  rownames_to_column("STRING_id") %>% 
+  left_join(mapped, by = "STRING_id") %>% 
+  mutate(degree = degree / 2) %>% 
+  mutate(padj = as.numeric(padj))-> hub.degrees
+
+#hub.degrees %>% 
+#  write.csv("Results/Document/E-MTAB-5734 [4] STRING_HubGenes_AgNPs_24h_999.csv")
+```
+
+### Download PPI network image
+
+```{r}
+clustersList <- string_db$get_clusters(mapped$STRING_id[1:916])
+
+mapped$color <- ifelse(mapped$log2FoldChange > 0, "#FF0000", "#0000FF")
+payload.id <- string_db$post_payload(mapped$STRING_id, colors = mapped$color)
+#string_db$plot_network(hits, payload_id = payload.id, network_flavor = "confidence")
+
+string_db$get_png(filter.hits, required_score = 999, network_flavor = "confidence", payload_id = payload.id, file = "Results/Figure/STRING/AgNPs/AgNPs_24h_999_916.png")
+string_db$get_png(clustersList[[6]], required_score = 999, network_flavor = "confidence", payload_id = payload.id, file = "Results/Figure/STRING/AgNPs/AgNPs_24h_999_916_c6.png")
+```
+
+### Hub genes for each cluster
+
+```{r}
+cluster.hub.genes <- list()
+
+for (i in 1:length(clustersList)) {
+  
+  cluster.genes <- clustersList[[i]]
+  
+  cluster.net.data <- net.data %>%
+    filter(from %in% cluster.genes & to %in% cluster.genes)
+  
+  g.cluster <- graph_from_data_frame(cluster.net.data, directed = FALSE)
+  
+  cluster.degrees <- degree(g.cluster)
+  
+  sort(cluster.degrees, decreasing = TRUE) %>%
+    as.data.frame() %>%
+    dplyr::rename("degree" = ".") %>%
+    rownames_to_column("STRING_id") %>%
+    left_join(mapped, by = "STRING_id") %>%
+    mutate(degree = degree / 2) %>% 
+    mutate(padj = as.numeric(padj)) -> hub.gene
+  
+  cluster.hub.genes[[paste("Cluster", i)]] <- hub.gene
+}
+
+cluster.hub.genes[1:6] -> cluster.hub.genes.AgNPs.24h
+```
+
+# Save RData
+
+```{r}
+save.image("RNA_PPI.RData")
+```
+

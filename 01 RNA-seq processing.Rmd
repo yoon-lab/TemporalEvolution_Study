@@ -1,0 +1,703 @@
+---
+title: "RNA-seq data processing"
+output: html_notebook
+---
+
+```{r}
+require(tidyverse)
+require(Rsubread)
+require(org.Hs.eg.db)
+require(DESeq2)
+require(ggrepel)
+require(clusterProfiler)
+```
+
+# Data pre-processing
+## Build a hg38 index
+
+```{r}
+buildindex(basename = "hg38_ref",
+           reference = "GRCh38/GRCh38.primary_assembly.genome.fa.gz")
+```
+
+
+## Align reads
+
+```{r}
+aling.stat <- align(
+  index = "hg38_ref",
+  readfile1 = "Fastq/ERR1955043.fastq_trimmed.fastq.gz",
+  readfile2 = NULL, # paired-end
+  output_file = "ERR1955043.BAM",
+  nthreads = 16
+)
+```
+
+```{r}
+list.files("Fastq", pattern = "*.fastq.gz", full.names = T) -> f.file.names # Prepare FASTQ files before run codes
+
+basename(f.file.names) -> file.base
+sub(".fastq_trimmed.fastq.gz", "", file.base) -> file.names
+
+file.path("BAM", paste0("ERR195504", ".BAM"))
+```
+
+
+## Function: Align, featureCounts, Extract
+
+```{r}
+fn.alignment <- function(f) {
+  sample.name <- sub(".fastq_trimmed.fastq.gz", "", basename(f)) #ERR1955043
+  bam.file <- file.path("BAM", paste0(sample.name, ".BAM")) #BAM/ERR1955043.BAM
+  
+  align(
+    index = "hg38_ref",
+    readfile1 = f, #Fastq/ERR1955043.fastq_trimmed.fastq.gz
+    readfile2 = NULL,
+    output_file = bam.file, #BAM/ERR1955043.BAM
+    nthreads = 16
+  )
+  
+  c <- featureCounts(
+    files = bam.file, #BAM/ERR1955043.BAM
+    annot.inbuilt = "hg38",
+    isPairedEnd = FALSE
+  )
+  
+  c$counts %>% 
+    as.data.frame() %>% 
+    rownames_to_column("ENTREZID") -> c.m
+    
+
+  #return(c$counts %>% 
+  #         as.data.frame() %>% 
+  #         rownames_to_column("ENTREZID"))
+
+  return(c.m)
+}
+```
+
+```{r}
+sub(".fastq_trimmed.fastq.gz", "", basename(f.file.names)) #ERR1955043, ERR1955046, ERR1955050, ERR1955051, ...
+sub("..fastq_trimmed.fastq.gz", "", basename(f.file.names)) # ERR195504, ERR195504, ERR195505, ERR195505, ...
+```
+
+
+```{r}
+align.res <- map(f.file.names, fn.alignment)
+align.res
+```
+
+```{r}
+align.res[[1]] %>% 
+  dplyr::rename("ERR1955043" = "ERR195504.BAM") -> ERR1955043
+
+align.res[[2]] %>% 
+  dplyr::rename("ERR1955046" = "ERR195504.BAM") -> ERR1955046
+
+align.res[[3]] %>% 
+  dplyr::rename("ERR1955050" = "ERR195505.BAM") -> ERR1955050
+
+align.res[[4]] %>% 
+  dplyr::rename("ERR1955051" = "ERR195505.BAM") -> ERR1955051
+
+align.res[[5]] %>% 
+  dplyr::rename("ERR1955054" = "ERR195505.BAM") -> ERR1955054
+
+align.res[[6]] %>% 
+  dplyr::rename("ERR1955057" = "ERR195505.BAM") -> ERR1955057
+
+align.res[[7]] %>% 
+  dplyr::rename("ERR1955060" = "ERR195506.BAM") -> ERR1955060
+
+align.res[[8]] %>% 
+  dplyr::rename("ERR1955063" = "ERR195506.BAM") -> ERR1955063
+
+align.res[[9]] %>% 
+  dplyr::rename("ERR1955066" = "ERR195506.BAM") -> ERR1955066
+
+align.res[[10]] %>% 
+  dplyr::rename("ERR1955069" = "ERR195506.BAM") -> ERR1955069
+
+align.res[[11]] %>% 
+  dplyr::rename("ERR1955072" = "ERR195507.BAM") -> ERR1955072
+
+align.res[[12]] %>% 
+  dplyr::rename("ERR1955075" = "ERR195507.BAM") -> ERR1955075
+
+align.res[[13]] %>% 
+  dplyr::rename("ERR1955099" = "ERR195509.BAM") -> ERR1955099
+
+align.res[[14]] %>% 
+  dplyr::rename("ERR1955100" = "ERR195510.BAM") -> ERR1955100
+
+align.res[[15]] %>% 
+  dplyr::rename("ERR1955101" = "ERR195510.BAM") -> ERR1955101
+
+align.res[[16]] %>% 
+  dplyr::rename("ERR1955102" = "ERR195510.BAM") -> ERR1955102
+
+align.res[[17]] %>% 
+  dplyr::rename("ERR1955103" = "ERR195510.BAM") -> ERR1955103
+
+align.res[[18]] %>% 
+  dplyr::rename("ERR1955104" = "ERR195510.BAM") -> ERR1955104
+
+align.res[[19]] %>% 
+  dplyr::rename("ERR1955105" = "ERR195510.BAM") -> ERR1955105
+
+align.res[[20]] %>% 
+  dplyr::rename("ERR1955106" = "ERR195510.BAM") -> ERR1955106
+
+align.res[[21]] %>% 
+  dplyr::rename("ERR1955107" = "ERR195510.BAM") -> ERR1955107
+
+align.res[[22]] %>% 
+  dplyr::rename("ERR1955108" = "ERR195510.BAM") -> ERR1955108
+
+align.res[[23]] %>% 
+  dplyr::rename("ERR1955109" = "ERR195510.BAM") -> ERR1955109
+
+align.res[[24]] %>% 
+  dplyr::rename("ERR1955110" = "ERR195511.BAM") -> ERR1955110
+
+align.res[[25]] %>% 
+  dplyr::rename("ERR1955123" = "ERR195512.BAM") -> ERR1955123
+
+align.res[[26]] %>% 
+  dplyr::rename("ERR1955124" = "ERR195512.BAM") -> ERR1955124
+
+align.res[[27]] %>% 
+  dplyr::rename("ERR1955125" = "ERR195512.BAM") -> ERR1955125
+
+align.res[[28]] %>% 
+  dplyr::rename("ERR1955126" = "ERR195512.BAM") -> ERR1955126
+
+align.res[[29]] %>% 
+  dplyr::rename("ERR1955127" = "ERR195512.BAM") -> ERR1955127
+
+align.res[[30]] %>% 
+  dplyr::rename("ERR1955128" = "ERR195512.BAM") -> ERR1955128
+
+align.res[[31]] %>% 
+  dplyr::rename("ERR1955129" = "ERR195512.BAM") -> ERR1955129
+
+align.res[[32]] %>% 
+  dplyr::rename("ERR1955130" = "ERR195513.BAM") -> ERR1955130
+
+align.res[[33]] %>% 
+  dplyr::rename("ERR1955131" = "ERR195513.BAM") -> ERR1955131
+
+align.res[[34]] %>% 
+  dplyr::rename("ERR1955132" = "ERR195513.BAM") -> ERR1955132
+
+align.res[[35]] %>% 
+  dplyr::rename("ERR1955133" = "ERR195513.BAM") -> ERR1955133
+
+align.res[[36]] %>% 
+  dplyr::rename("ERR1955136" = "ERR195513.BAM") -> ERR1955136
+
+align.res[[37]] %>% 
+  dplyr::rename("ERR1955139" = "ERR195513.BAM") -> ERR1955139
+
+align.res[[38]] %>% 
+  dplyr::rename("ERR1955142" = "ERR195514.BAM") -> ERR1955142
+
+align.res[[39]] %>% 
+  dplyr::rename("ERR1955145" = "ERR195514.BAM") -> ERR1955145
+
+align.res[[40]] %>% 
+  dplyr::rename("ERR1955148" = "ERR195514.BAM") -> ERR1955148
+
+align.res[[41]] %>% 
+  dplyr::rename("ERR1955150" = "ERR195515.BAM") -> ERR1955150
+
+align.res[[42]] %>% 
+  dplyr::rename("ERR1955153" = "ERR195515.BAM") -> ERR1955153
+
+align.res[[43]] %>% 
+  dplyr::rename("ERR1955156" = "ERR195515.BAM") -> ERR1955156
+
+align.res[[44]] %>% 
+  dplyr::rename("ERR1955159" = "ERR195515.BAM") -> ERR1955159
+
+align.res[[45]] %>% 
+  dplyr::rename("ERR1955162" = "ERR195516.BAM") -> ERR1955162
+
+align.res[[46]] %>% 
+  dplyr::rename("ERR1955165" = "ERR195516.BAM") -> ERR1955165
+
+align.res[[47]] %>% 
+  dplyr::rename("ERR1955168" = "ERR195516.BAM") -> ERR1955168
+```
+
+```{r}
+ERR1955043 %>% 
+  full_join(ERR1955046, by = "ENTREZID") %>% 
+  full_join(ERR1955050, by = "ENTREZID") %>%
+  full_join(ERR1955051, by = "ENTREZID") %>%
+  full_join(ERR1955054, by = "ENTREZID") %>%
+  full_join(ERR1955057, by = "ENTREZID") %>% #6
+  full_join(ERR1955060, by = "ENTREZID") %>%  
+  full_join(ERR1955063, by = "ENTREZID") %>% 
+  full_join(ERR1955066, by = "ENTREZID") %>% 
+  full_join(ERR1955069, by = "ENTREZID") %>% 
+  full_join(ERR1955072, by = "ENTREZID") %>% #11
+  full_join(ERR1955075, by = "ENTREZID") %>% 
+  full_join(ERR1955099, by = "ENTREZID") %>% 
+  full_join(ERR1955100, by = "ENTREZID") %>% 
+  full_join(ERR1955101, by = "ENTREZID") %>% 
+  full_join(ERR1955102, by = "ENTREZID") %>% #16
+  full_join(ERR1955103, by = "ENTREZID") %>% 
+  full_join(ERR1955104, by = "ENTREZID") %>% 
+  full_join(ERR1955105, by = "ENTREZID") %>% 
+  full_join(ERR1955106, by = "ENTREZID") %>% 
+  full_join(ERR1955107, by = "ENTREZID") %>% #21
+  full_join(ERR1955108, by = "ENTREZID") %>% 
+  full_join(ERR1955109, by = "ENTREZID") %>% 
+  full_join(ERR1955110, by = "ENTREZID") %>% 
+  full_join(ERR1955123, by = "ENTREZID") %>%
+  full_join(ERR1955124, by = "ENTREZID") %>% #26 
+  full_join(ERR1955125, by = "ENTREZID") %>% 
+  full_join(ERR1955126, by = "ENTREZID") %>% 
+  full_join(ERR1955127, by = "ENTREZID") %>% 
+  full_join(ERR1955128, by = "ENTREZID") %>%
+  full_join(ERR1955129, by = "ENTREZID") %>% #31 
+  full_join(ERR1955130, by = "ENTREZID") %>% 
+  full_join(ERR1955131, by = "ENTREZID") %>% 
+  full_join(ERR1955132, by = "ENTREZID") %>% 
+  full_join(ERR1955133, by = "ENTREZID") %>%
+  full_join(ERR1955136, by = "ENTREZID") %>% #36
+  full_join(ERR1955139, by = "ENTREZID") %>% 
+  full_join(ERR1955142, by = "ENTREZID") %>% 
+  full_join(ERR1955145, by = "ENTREZID") %>% 
+  full_join(ERR1955148, by = "ENTREZID") %>%
+  full_join(ERR1955150, by = "ENTREZID") %>% #41  
+  full_join(ERR1955153, by = "ENTREZID") %>% 
+  full_join(ERR1955156, by = "ENTREZID") %>% 
+  full_join(ERR1955159, by = "ENTREZID") %>% 
+  full_join(ERR1955162, by = "ENTREZID") %>%
+  full_join(ERR1955165, by = "ENTREZID") %>% #46
+  full_join(ERR1955168, by = "ENTREZID") -> raw.0
+```
+
+
+```{r}
+read_delim("Data/raw_0.csv") -> raw.0
+```
+
+## Get meta informaton
+
+```{r}
+read_delim("Data/meta data_transcriptomics_removal.csv") -> meta.info
+meta.info %>% 
+  column_to_rownames("sample.id") -> meta.info.1
+```
+
+
+## Map & Change "ERR ID" to "Sample ID"
+
+```{r}
+raw.0.colname <- colnames(raw.0)
+err.ids <- raw.0.colname[-1]
+mapping.id <- setNames(meta.info$sample.id, meta.info$ERR.ID)
+raw.0.colname[-1] <- mapping.id[err.ids]
+colnames(raw.0) <- raw.0.colname
+```
+
+```{r}
+raw.0 %>% 
+  mutate(ENTREZID = as.character(ENTREZID)) %>% 
+  mutate(symbol = mapIds(org.Hs.eg.db, keys = ENTREZID, column = "SYMBOL", keytype = "ENTREZID")) %>% 
+  column_to_rownames("ENTREZID") %>% 
+  na.omit() %>% 
+  rownames_to_column("ENTREZID") %>% 
+  column_to_rownames("symbol") %>% 
+  dplyr::select(-ENTREZID) %>% 
+  dplyr::select(contains("h_1")|contains("h_2")|contains("h_3")|contains("h_4")) -> raw.1
+```
+
+
+## Divide count matrix by group
+
+```{r}
+raw.1 %>% 
+  dplyr::select(contains("none_1h")|contains("AgNPs_1h")) -> agnp.1h
+
+raw.1 %>% 
+  dplyr::select(contains("none_6h")|contains("AgNPs_6h")) %>% 
+  dplyr::select(-contains("s_6h_4")) -> agnp.6h
+
+raw.1 %>% 
+  dplyr::select(contains("none_24h")|contains("AgNPs_24h")) %>% 
+  dplyr::select(-contains("s_24h_4")) -> agnp.24h
+
+agnp.1h %>% 
+  cbind(agnp.6h) %>% 
+  cbind(agnp.24h) -> agnp.all
+```
+
+
+## Divide meta matrix by group
+
+```{r}
+meta.info.1 %>% 
+  filter(group %in% c("A549_none_1h", "A549_AgNPs_1h")) %>% 
+  arrange(desc(group)) -> agnp.1h.meta
+
+meta.info.1 %>% 
+  filter(group %in% c("A549_none_6h", "A549_AgNPs_6h")) %>% 
+  arrange(desc(group)) -> agnp.6h.meta
+
+meta.info.1 %>% 
+  filter(group %in% c("A549_none_24h", "A549_AgNPs_24h")) %>% 
+  arrange(desc(group)) -> agnp.24h.meta
+
+agnp.1h.meta %>% 
+  rbind(agnp.6h.meta) %>% 
+  rbind(agnp.24h.meta) -> agnp.all.meta
+```
+
+
+
+
+# RNA-seq basic analysis: Part 1
+
+## [2-1] AgNPs 1h
+
+```{r}
+# Normalization
+dds.agnp.1h <- DESeqDataSetFromMatrix(agnp.1h, agnp.1h.meta, design = ~ group)
+dds.agnp.1h$group <- relevel(dds.agnp.1h$group, ref = "A549_none_1h")
+
+# Normalized count matrix
+dds.agnp.1h <- estimateSizeFactors(dds.agnp.1h)
+dds.agnp.1h.norm <- counts(dds.agnp.1h, normalized = T)
+
+# Transformed count matrix
+# Log + Variance Stabilization Transformation (VST)
+agnp.1h.vst.res <- vst(dds.agnp.1h)
+agnp.1h.trans.mtx <- assay(agnp.1h.vst.res)
+```
+
+### DEG analysis
+
+```{r}
+# Run DEG calculation
+dds.agnp.1h <- DESeq(dds.agnp.1h)
+
+# Get names
+resultsNames(dds.agnp.1h)
+```
+
+```{r}
+# Get DEG result
+results(dds.agnp.1h, name = "group_A549_AgNPs_1h_vs_A549_none_1h") %>%
+  data.frame %>% 
+  arrange(-log2FoldChange) -> agnp.1h.deg.res
+```
+
+
+## [2-2] AgNPs 6h
+
+```{r}
+# Normalization
+dds.agnp.6h <- DESeqDataSetFromMatrix(agnp.6h, agnp.6h.meta, design = ~ group)
+dds.agnp.6h$group <- relevel(dds.agnp.6h$group, ref = "A549_none_6h")
+
+# Normalized count matrix
+dds.agnp.6h <- estimateSizeFactors(dds.agnp.6h)
+dds.agnp.6h.norm <- counts(dds.agnp.6h, normalized = T)
+
+# Transformed count matrix
+# Log + Variance Stabilization Transformation (VST)
+agnp.6h.vst.res <- vst(dds.agnp.6h)
+agnp.6h.trans.mtx <- assay(agnp.6h.vst.res)
+```
+
+### DEG analysis
+
+```{r}
+# Run DEG calculation
+dds.agnp.6h <- DESeq(dds.agnp.6h)
+
+# Get names
+resultsNames(dds.agnp.6h)
+```
+
+```{r}
+# Get DEG result
+results(dds.agnp.6h, name = "group_A549_AgNPs_6h_vs_A549_none_6h") %>%
+  data.frame %>% 
+  arrange(-log2FoldChange) -> agnp.6h.deg.res
+```
+
+
+## [2-3] AgNPs 24h
+
+```{r}
+# Normalization
+dds.agnp.24h <- DESeqDataSetFromMatrix(agnp.24h, agnp.24h.meta, design = ~ group)
+dds.agnp.24h$group <- relevel(dds.agnp.24h$group, ref = "A549_none_24h")
+
+# Normalized count matrix
+dds.agnp.24h <- estimateSizeFactors(dds.agnp.24h)
+dds.agnp.24h.norm <- counts(dds.agnp.24h, normalized = T)
+
+# Transformed count matrix
+# Log + Variance Stabilization Transformation (VST)
+agnp.24h.vst.res <- vst(dds.agnp.24h)
+agnp.24h.trans.mtx <- assay(agnp.24h.vst.res)
+```
+
+### DEG analysis
+
+```{r}
+# Run DEG calculation
+dds.agnp.24h <- DESeq(dds.agnp.24h)
+
+# Get names
+resultsNames(dds.agnp.24h)
+```
+
+```{r}
+# Get DEG result
+results(dds.agnp.24h, name = "group_A549_AgNPs_24h_vs_A549_none_24h") %>%
+  data.frame %>% 
+  arrange(-log2FoldChange) -> agnp.24h.deg.res
+```
+
+
+
+# RNA-seq basic analysis: Part 2
+
+## Functions
+### Function: PCA
+
+```{r}
+# t.m = agnp.1h.trans.mtx
+# m = agnp.1h.meta
+fn.PCA <- function(t.m, m) {
+  p.r <- prcomp(t(t.m))
+  p.s <- summary(p.r)
+  
+  data.frame(x = p.r$x[,1], y = p.r$x[,2]) %>%
+    rownames_to_column("sample.id") %>%
+    left_join(m %>% rownames_to_column("sample.id")) -> p.r.w.meta
+  
+  p.r.w.meta %>% 
+    ggplot(aes(x, y, color = group, shape = group)) +
+    geom_point(shape = 19, size = 2, stroke = 1.5, alpha = 0.7) + 
+    geom_hline(yintercept = 0, linetype = 2) +
+    geom_vline(xintercept = 0, linetype = 2) +
+    #scale_color_manual(values = c("cell" = "red", "exosomes" = "blue")) +
+    theme_bw() +
+    theme(
+      axis.text.x = element_text(face = "bold"),
+      axis.text.y = element_text(face = "bold"),
+      legend.title = element_blank()
+    ) +
+    xlab(paste0("PC1", " (", round(p.s$importance[2, 1]*100, 1), "%)")) +
+    ylab(paste0("PC2", " (", round(p.s$importance[2, 2]*100, 1), "%)")) +
+    labs(color = "group", shape = "group") +
+    geom_text_repel(aes(label = sample.id), size = 3, color = "black", min.segment.length = 1) -> pca.r
+  
+  return(pca.r)
+}
+```
+
+
+### Function: DEG annotation & Over-representation analysis
+
+```{r}
+fn.deg.overrep <- function(d.r) {
+  d.r$sig <-
+    ifelse(
+      ((d.r$padj) < 0.05 & d.r$log2FoldChange > 0), "up_reg",
+      ifelse(
+        ((d.r$padj) < 0.05 & d.r$log2FoldChange < -0), "down_reg",                                                                                                                                
+        "no_sig"
+      )
+    )
+  
+  d.r %>%
+    rownames_to_column("symbol") %>%
+    dplyr::filter(sig == "up_reg") %>%
+    dplyr::select("symbol") -> up.g.s
+  
+  d.r %>%
+    rownames_to_column("symbol") %>%
+    dplyr::filter(sig == "down_reg") %>%
+    dplyr::select("symbol") -> down.g.s
+  
+  up.go <- enrichGO(up.g.s$symbol, org.Hs.eg.db, keyType = "SYMBOL", ont = "BP")
+  up.go.r <- up.go@result
+  
+  down.go <- enrichGO(down.g.s$symbol, org.Hs.eg.db, keyType = "SYMBOL", ont = "BP")
+  down.go.r <- down.go@result
+  
+  up.go.r$updn <- "up"
+  down.go.r$updn <- "down"
+  
+  go.r <- rbind(up.go.r, down.go.r)
+  
+  return(go.r)
+}
+```
+
+
+### Function: DEG annotation & KEGG
+
+```{r}
+fn.deg.kegg <- function(d.r) {
+    d.r$sig <-
+    ifelse(
+      ((d.r$padj) < 0.05 & d.r$log2FoldChange > 0), "up_reg",
+      ifelse(
+        ((d.r$padj) < 0.05 & d.r$log2FoldChange < -0), "down_reg",                                                                                                                                
+        "no_sig"
+      )
+    )
+  
+  d.r %>%
+    rownames_to_column("symbol") %>%
+    dplyr::filter(sig == "up_reg") %>%
+    dplyr::select("symbol") -> up.g.s
+  
+  d.r %>%
+    rownames_to_column("symbol") %>%
+    dplyr::filter(sig == "down_reg") %>%
+    dplyr::select("symbol") -> down.g.s
+  
+  up.g.s %>% 
+  mutate(ENTREZID = mapIds(org.Hs.eg.db, keys = symbol, column = "ENTREZID", keytype = "SYMBOL")) %>%
+    na.omit() -> up.g.s.ID
+  
+  down.g.s %>% 
+  mutate(ENTREZID = mapIds(org.Hs.eg.db, keys = symbol, column = "ENTREZID", keytype = "SYMBOL")) %>%
+    na.omit() -> down.g.s.ID
+  
+  up.k <- enrichKEGG(up.g.s.ID$ENTREZID, organism = "hsa", keyType = "kegg")
+  up.k.r <- up.k@result
+  
+  down.k <- enrichKEGG(down.g.s.ID$ENTREZID, organism = "hsa", keyType = "kegg")
+  down.k.r <- down.k@result
+  
+  up.k.r$updn <- "up"
+  down.k.r$updn <- "down"
+  
+  k.r <- rbind(up.k.r, down.k.r)
+  return(k.r)
+}
+```
+
+
+### Function: Visualization (Dot plot)
+
+```{r}
+fn.vis.dot <- function(r, k) {
+  r %>% 
+    filter(p.adjust < 0.05 & 
+             grepl(k, Description, ignore.case = T)) %>% 
+    group_by(updn) %>% 
+    slice_max(Count, n = 20) %>% 
+    arrange(Count, .by_group = T) %>% 
+    mutate(Description = factor(Description, Description),
+           updn = factor(updn, c("up", "down"))) %>% 
+    ggplot(aes(x = updn, y = Description, size = Count, color = p.adjust)) +
+    geom_point() +
+    labs(x = "", y = "") +
+    scale_color_gradient(high = "red", low = "blue", trans = "reverse") +
+    theme_bw() -> f.r
+  return(f.r)
+}
+```
+
+
+## PCA
+
+```{r}
+fn.PCA(agnp.1h.trans.mtx, agnp.1h.meta) -> AgNPs.1h.PCA
+fn.PCA(agnp.6h.trans.mtx, agnp.6h.meta) -> AgNPs.6h.PCA
+fn.PCA(agnp.24h.trans.mtx, agnp.24h.meta) -> AgNPs.24h.PCA
+```
+
+### PCA: All
+
+```{r}
+# Normalization
+dds <- DESeqDataSetFromMatrix(agnp.all, agnp.all.meta, design = ~ group)
+
+# Normalized count matrix
+dds <- estimateSizeFactors(dds)
+norm.mtx <- counts(dds, normalized = T)
+
+# Transformed count matrix
+# Log + Variance Stabilization Transformation (VST)
+vst.res <- vst(dds)
+trans.mtx <- assay(vst.res)
+
+pca.res <- prcomp(t(trans.mtx))
+#pca.res$x
+summary(pca.res) -> pca.sum
+#pca.sum$importance
+
+data.frame(x = pca.res$x[,1], y = pca.res$x[,2]) %>%
+  rownames_to_column("sample.id") %>% 
+  # ggplot(aes(x = x, y = y)) + geom_point()
+  left_join(meta.info.1 %>% rownames_to_column("sample.id")) -> pca.res.w.meta
+```
+
+```{r fig.height = 4.3, fig.width = 7.8}
+pca.res.w.meta %>% 
+  ggplot(aes(x, y, color = group, shape = group)) +
+  geom_point(shape = 19, size = 3.5, stroke = 1.5, alpha = 0.7) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(face = "bold", size = 13),
+    axis.text.y = element_text(face = "bold", size = 13),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    legend.title = element_blank()
+  ) +
+  xlab(paste0("PC1", " (", round(pca.sum$importance[2, 1]*100, 1), "%)")) +
+  ylab(paste0("PC2", " (", round(pca.sum$importance[2, 2]*100, 1), "%)")) +
+  labs(color = "group", shape = "group")
+```
+
+
+## Over-representation analysis
+
+```{r}
+fn.deg.overrep(agnp.1h.deg.res) -> GO.AgNPs.1h
+fn.deg.overrep(agnp.6h.deg.res) -> GO.AgNPs.6h
+fn.deg.overrep(agnp.24h.deg.res) -> GO.AgNPs.24h
+```
+
+## KEGG pathway
+
+```{r}
+fn.deg.kegg(agnp.1h.deg.res) -> KEGG.AgNPs.1h
+fn.deg.kegg(agnp.6h.deg.res) -> KEGG.AgNPs.6h
+fn.deg.kegg(agnp.24h.deg.res) -> KEGG.AgNPs.24h
+```
+
+## Visualization
+
+```{r fig.height = 9, fig.width = 7.2}
+# fn.vis.dot(Term set, "Filtering keyword")
+fn.vis.dot(GO.AgNPs.6h, "")
+fn.vis.dot(GO.AgNPs.24h, "")
+```
+
+
+# Save RData
+
+```{r}
+save.image("RNA_processing.RData")
+```
+
+
+
