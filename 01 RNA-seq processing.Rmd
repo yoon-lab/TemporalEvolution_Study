@@ -507,6 +507,88 @@ fn.PCA <- function(t.m, m) {
 ```
 
 
+### Function: t-SNE
+
+```{r}
+fn.tsne <- function(t.m, m, perplexity = 30, seed = 1234) {
+  set.seed(seed)
+  t.out <- Rtsne(
+    X = t(t.m), 
+    dims = 2, 
+    perplexity = perplexity, 
+    verbose = TRUE, 
+    max_iter = 1000
+  )
+
+  t.r <- data.frame(
+    tSNE1 = t.out$Y[,1],
+    tSNE2 = t.out$Y[,2],
+    sample.id = rownames(m)
+  ) %>%
+    left_join(
+      m %>% rownames_to_column("sample.id"),
+      by = "sample.id"
+    )
+  
+
+  p <- ggplot(t.r, aes(x = tSNE1, y = tSNE2, color = group, shape = group)) +
+    geom_point(size = 2.5, alpha = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(
+      axis.text = element_text(face = "bold"),
+      legend.title = element_blank()
+    ) +
+    labs(x = "t-SNE 1", y = "t-SNE 2") +
+    geom_text_repel(aes(label = sample.id), size = 3, color = "black")
+  
+  return(p)
+}
+```
+
+
+### Functon: UMAP
+
+```{r}
+fn.umap <- function(t.m, m, n_neighbors = 15, min_dist = 0.1, seed = 123) {
+  set.seed(seed)
+  u.out <- umap(
+    X = t(t.m),
+    n_neighbors = n_neighbors,
+    min_dist = min_dist,
+    metric = "cosine"
+  )
+
+  u.r <- data.frame(
+    UMAP1 = u.out[,1],
+    UMAP2 = u.out[,2],
+    sample.id = rownames(m)
+  ) %>%
+    left_join(
+      m %>% rownames_to_column("sample.id"),
+      by = "sample.id"
+    )
+  
+
+  p <- ggplot(u.r, aes(x = UMAP1, y = UMAP2, color = group, shape = group)) +
+    geom_point(size = 2.5, alpha = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(
+      axis.text = element_text(face = "bold"),
+      legend.title = element_blank()
+    ) +
+    labs(x = "UMAP 1", y = "UMAP 2") +
+    geom_text_repel(aes(label = sample.id), size = 3, color = "black")
+  
+  return(p)
+}
+
+```
+
+
 ### Function: DEG annotation & Over-representation analysis
 
 ```{r}
@@ -668,6 +750,94 @@ pca.res.w.meta %>%
 ```
 
 
+```{r}
+require(Rtsne)
+require(uwot)
+
+AgNPs.1h.tSNE <- fn.tsne(agnp.1h.trans.mtx, agnp.1h.meta, perplexity = 2)
+AgNPs.1h.UMAP <- fn.umap(agnp.1h.trans.mtx, agnp.1h.meta, n_neighbors = 8, min_dist = 0.1)
+AgNPs.6h.tSNE <- fn.tsne(agnp.6h.trans.mtx, agnp.6h.meta, perplexity = 2)
+AgNPs.6h.UMAP <- fn.umap(agnp.6h.trans.mtx, agnp.6h.meta, n_neighbors = 7, min_dist = 0.1)
+AgNPs.24h.tSNE <- fn.tsne(agnp.24h.trans.mtx, agnp.24h.meta, perplexity = 2)
+AgNPs.24h.UMAP <- fn.umap(agnp.24h.trans.mtx, agnp.24h.meta, n_neighbors = 7, min_dist = 0.1)
+```
+
+### t-SNE: All
+```{r}
+set.seed(1234)
+
+tSNE.res <- Rtsne(
+  X = t(trans.mtx), 
+  dims = 2, 
+  perplexity = 5, 
+  verbose = TRUE, 
+  max_iter = 1000
+)
+
+tSNE.res.w.meta <- data.frame(
+  tSNE1 = tSNE.res$Y[,1],
+  tSNE2 = tSNE.res$Y[,2],
+  sample.id = rownames(agnp.all.meta)
+) %>%
+  left_join(
+    agnp.all.meta %>% rownames_to_column("sample.id"),
+    by = "sample.id"
+  )
+```
+
+```{r}
+ggplot(tSNE.res.w.meta, aes(x = tSNE1, y = tSNE2, color = group, shape = group)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  theme_bw() +
+  theme(
+    axis.text = element_text(face = "bold"),
+    legend.title = element_blank()
+  ) +
+  labs(x = "t-SNE 1", y = "t-SNE 2") +
+  geom_text_repel(aes(label = sample.id), size = 3, color = "black")
+```
+
+
+### UMAP: All
+
+```{r}
+set.seed(1234)
+
+UMAP.res <- umap(
+  X = t(trans.mtx),
+  n_neighbors = 22,
+  min_dist = 0.1,
+  metric = "cosine"
+)
+UMAP.res.w.meta <- data.frame(
+  UMAP1 = UMAP.res[,1],
+  UMAP2 = UMAP.res[,2],
+  sample.id = rownames(agnp.all.meta)
+) %>%
+  left_join(
+    agnp.all.meta %>% rownames_to_column("sample.id"),
+    by = "sample.id"
+  )
+```
+
+
+```{r}
+ggplot(UMAP.res.w.meta, aes(x = UMAP1, y = UMAP2, color = group, shape = group)) +
+    geom_point(size = 2.5, alpha = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(
+      axis.text = element_text(face = "bold"),
+      legend.title = element_blank()
+    ) +
+    labs(x = "UMAP 1", y = "UMAP 2") +
+    geom_text_repel(aes(label = sample.id), size = 3, color = "black")
+```
+
+
 ## Over-representation analysis
 
 ```{r}
@@ -691,7 +861,6 @@ fn.deg.kegg(agnp.24h.deg.res) -> KEGG.AgNPs.24h
 fn.vis.dot(GO.AgNPs.6h, "")
 fn.vis.dot(GO.AgNPs.24h, "")
 ```
-
 
 # Save RData
 
